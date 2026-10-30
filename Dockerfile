@@ -16,6 +16,11 @@ USER root
 ENV NGINX_WEBROOT=/app/web
 ENV PHP_OPCACHE_ENABLE=1
 
+# Coolify's Traefik sits in a private Docker network and sets X-Forwarded-For,
+# so trust private ranges to see real visitor IPs. Set TRUSTED_PROXY=cloudflare
+# when Cloudflare proxies the site.
+ENV TRUSTED_PROXY=local
+
 # bcmath required by craftcms/cms + moneyphp/money, gd required by phpoffice/phpspreadsheet,
 # intl required by craftcms/cms, imagick for Craft's image transforms.
 # imagick is built from GitHub instead of PECL, which regularly times out.

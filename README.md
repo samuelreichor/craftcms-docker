@@ -22,6 +22,7 @@ What's inside:
 - Composer, `git`, `unzip`, `bash`, `vim`
 - MariaDB client as `mysql`/`mysqldump`, wrapped to skip TLS verification of MySQL's self-signed certificate, so `craft db/backup` works
 - Craft's writable paths (`storage`, `web/cpresources`, `web/assets`, `.env`) owned by `www-data`
+- `TRUSTED_PROXY=local`, so nginx and Craft see real visitor IPs behind Coolify's Traefik (set `TRUSTED_PROXY=cloudflare` when Cloudflare proxies the site)
 
 The same image runs the queue worker: any command other than the default skips nginx and php-fpm
 (`command: ["php", "craft", "queue/listen", "--verbose"]`).
@@ -70,12 +71,18 @@ Every setting lives in exactly one place:
 | Extra PHP extensions | `USER root` + `RUN install-php-extensions redis` + `USER www-data` in the project Dockerfile |
 | PHP settings | serversideup env vars at runtime, e.g. `PHP_MEMORY_LIMIT`, `PHP_UPLOAD_MAX_FILE_SIZE` ([list](https://serversideup.net/open-source/docker-php/docs/reference/environment-variable-specification)) |
 
+The examples let Coolify generate the database passwords (`${SERVICE_PASSWORD_MYSQL}`, `${SERVICE_PASSWORD_MYSQLROOT}`)
+and pass them to Craft as `CRAFT_DB_*`. MySQL only applies them when the data volume is created: for an existing
+database, keep its current password (set `SERVICE_PASSWORD_MYSQL` to it in Coolify) or change it in MySQL first.
+
 > Upgrading MySQL to a newer major version on an existing volume usually works; downgrading does not. Take a backup first.
 
 ## Maintenance
 
 - **Security updates**: the workflow rebuilds all images every Monday without cache. PHP patch releases
   (8.4.x) arrive the same way. Trigger "Run workflow" in the Actions tab to rebuild right away.
+- **Vulnerabilities**: every build scans the images with [Trivy](https://trivy.dev) (fixable HIGH/CRITICAL findings).
+  Results show up in the build log and under the repository's **Security > Code scanning** tab.
 - **New PHP version**: add it to the list in the `versions` job of `.github/workflows/build.yml` and push.
   Dropped versions keep their last tags on GHCR but are no longer updated.
 - **Changes to the image** (new extension, …): edit `Dockerfile` and push to `main`.
