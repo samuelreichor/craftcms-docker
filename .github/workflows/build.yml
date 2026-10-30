@@ -104,6 +104,15 @@ jobs:
           path: /tmp/digests/*
           retention-days: 1
 
+  # Single required status check for branch rules: green only when every
+  # build in the matrix is green, independent of the PHP versions built.
+  ci:
+    if: always()
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test "${{ needs.build.result }}" = success
+
   # Combines the per-arch images into one multi-arch tag.
   merge:
     name: ${{ matrix.php }}
