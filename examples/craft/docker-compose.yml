@@ -1,0 +1,48 @@
+services:
+  db:
+    image: mysql:${MYSQL_VERSION:-8.4}
+    environment:
+      MYSQL_DATABASE: db # Database name
+      MYSQL_USER: db # Database user
+      MYSQL_PASSWORD: db # Database password
+      MYSQL_ROOT_PASSWORD: root # Root password (credentials only available in the container)
+    volumes:
+      - db_data:/var/lib/mysql # Maps the 'db_data' named volume to MySQL's data directory
+    healthcheck: # Configures a health check for the database
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 1s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: # Specifies how to build the Docker image
+      context: .
+      dockerfile: ./.coolify/Dockerfile # Specifies the path to the Dockerfile
+      target: web # Build target stage
+      args: # Passes build arguments to the Dockerfile
+        - PHP_VERSION=${PHP_VERSION:-8.4}
+        - NODE_VERSION=${NODE_VERSION:-22}
+    depends_on:
+      db:
+        condition: service_healthy # Ensures the 'web' service starts only after the 'db' service is healthy
+    volumes:
+      - assets_data:/app/web/assets # Maps the 'assets_data' named volume to asset directory
+
+  queue:
+    build:
+      context: .
+      dockerfile: ./.coolify/Dockerfile
+      target: queue
+      args:
+        - PHP_VERSION=${PHP_VERSION:-8.4}
+        - NODE_VERSION=${NODE_VERSION:-22}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - assets_data:/app/web/assets
+    restart: unless-stopped
+
+volumes:
+  db_data: # Defines the 'db_data' volume for persistent database storage (database is not deleted during deploy)
+  assets_data: # Defines the 'assets_data' volume for persistent asset storage (assets get not deleted during deploy)
