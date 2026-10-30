@@ -18,13 +18,6 @@ services:
     build:
       context: .
       dockerfile: ./.coolify/Dockerfile # PHP + Node versions are set in the Dockerfile
-    environment: # DB connection, the password is shared with the db service
-      CRAFT_DB_DRIVER: mysql
-      CRAFT_DB_SERVER: db
-      CRAFT_DB_PORT: 3306
-      CRAFT_DB_DATABASE: db
-      CRAFT_DB_USER: db
-      CRAFT_DB_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
     depends_on:
       db:
         condition: service_healthy # Ensures the 'web' service starts only after the 'db' service is healthy
@@ -39,13 +32,6 @@ services:
     command: ["php", "craft", "queue/listen", "--verbose"]
     healthcheck: # The image's default check probes nginx, which doesn't run here
       test: ["CMD-SHELL", "pgrep -f queue/listen > /dev/null || exit 1"]
-    environment: # DB connection, the password is shared with the db service
-      CRAFT_DB_DRIVER: mysql
-      CRAFT_DB_SERVER: db
-      CRAFT_DB_PORT: 3306
-      CRAFT_DB_DATABASE: db
-      CRAFT_DB_USER: db
-      CRAFT_DB_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
     depends_on:
       db:
         condition: service_healthy

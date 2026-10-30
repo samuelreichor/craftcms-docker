@@ -98,9 +98,20 @@ Every setting lives in exactly one place:
 | Extra PHP extensions | `RUN install-php-extensions redis` in the project Dockerfile (while it runs as `root`) |
 | PHP settings | serversideup env vars at runtime, e.g. `PHP_MEMORY_LIMIT`, `PHP_UPLOAD_MAX_FILE_SIZE` ([list](https://serversideup.net/open-source/docker-php/docs/reference/environment-variable-specification)) |
 
-The examples let Coolify generate the database passwords (`${SERVICE_PASSWORD_MYSQL}`, `${SERVICE_PASSWORD_MYSQLROOT}`)
-and pass them to Craft as `CRAFT_DB_*`. MySQL only applies them when the data volume is created: for an existing
-database, keep its current password (set `SERVICE_PASSWORD_MYSQL` to it in Coolify) or change it in MySQL first.
+The examples let Coolify generate the database passwords (`${SERVICE_PASSWORD_MYSQL}`, `${SERVICE_PASSWORD_MYSQLROOT}`).
+Craft gets its connection from the Environment Variables in Coolify, which reach every service:
+
+```dotenv
+CRAFT_DB_DRIVER=mysql
+CRAFT_DB_SERVER=db
+CRAFT_DB_PORT=3306
+CRAFT_DB_DATABASE=db
+CRAFT_DB_USER=db
+CRAFT_DB_PASSWORD=$SERVICE_PASSWORD_MYSQL
+```
+
+MySQL only applies the generated passwords when the data volume is created: for an existing database, keep its
+current password (set `SERVICE_PASSWORD_MYSQL` to it in Coolify) or change it in MySQL first.
 
 > Upgrading MySQL to a newer major version on an existing volume usually works; downgrading does not. Take a backup first.
 
