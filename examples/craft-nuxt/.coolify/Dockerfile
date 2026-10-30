@@ -5,16 +5,13 @@ ARG NODE_VERSION=24
 ### Nuxt build
 FROM node:${NODE_VERSION}-alpine AS nuxtbuilder
 
-# Nuxt reads these in nuxt.config.ts at build time (craftcms baseUrl + siteMap),
-# so they have to be passed in as build args, not only as runtime env vars.
+# Nuxt reads these in nuxt.config.ts at build time (craftcms baseUrl + siteMap).
+# Coolify passes its build variables as build args; Docker only hands over the
+# ones declared here, and they are visible as env vars during `npm run build`.
 ARG NUXT_PRIMARY_SITE_URL
 ARG NUXT_PRIMARY_SITE_URL_DE
 ARG NUXT_PRIMARY_SITE_URL_ES
 ARG NUXT_CRAFT_TOKEN
-ENV NUXT_PRIMARY_SITE_URL=${NUXT_PRIMARY_SITE_URL} \
-  NUXT_PRIMARY_SITE_URL_DE=${NUXT_PRIMARY_SITE_URL_DE} \
-  NUXT_PRIMARY_SITE_URL_ES=${NUXT_PRIMARY_SITE_URL_ES} \
-  NUXT_CRAFT_TOKEN=${NUXT_CRAFT_TOKEN}
 
 WORKDIR /app
 

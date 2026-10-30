@@ -44,12 +44,9 @@ services:
       context: .
       dockerfile: ./.coolify/Dockerfile
       target: nuxt
-      args:
-        # Baked into the build by nuxt.config.ts (craftcms baseUrl + siteMap)
-        - NUXT_PRIMARY_SITE_URL=${NUXT_PRIMARY_SITE_URL}
-        - NUXT_PRIMARY_SITE_URL_DE=${NUXT_PRIMARY_SITE_URL_DE}
-        - NUXT_PRIMARY_SITE_URL_ES=${NUXT_PRIMARY_SITE_URL_ES}
-        - NUXT_CRAFT_TOKEN=${NUXT_CRAFT_TOKEN}
+      # NUXT_PRIMARY_SITE_URL, NUXT_PRIMARY_SITE_URL_DE, NUXT_PRIMARY_SITE_URL_ES and
+      # NUXT_CRAFT_TOKEN have to be created in Coolify's Environment Variables
+      # (available during build). Coolify injects them as build args.
     depends_on:
       - web
     restart: unless-stopped

@@ -32,6 +32,7 @@ Copy one of the examples into the project root:
 
 - [`examples/craft`](examples/craft): classic Craft site (Twig + Vite assets) with `web`, `queue` and `db`
 - [`examples/craft-nuxt`](examples/craft-nuxt): headless Craft + Nuxt SSR on one domain
+  (create the `NUXT_*` variables in Coolify's Environment Variables, Coolify passes them to the build)
 
 The project Dockerfile is short:
 
