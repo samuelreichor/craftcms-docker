@@ -50,12 +50,20 @@ FROM ghcr.io/samuelreichor/craftcms-docker:${PHP_VERSION}
 # Replaces the whole site config instead of adding snippets to server-opts.d.
 COPY .coolify/nginx/http.conf.template /etc/nginx/site-opts.d/http.conf.template
 
+# Code and dependencies belong to root, so PHP can't modify them.
+USER root
+
 # Dependencies first, so they stay cached until composer.lock changes.
 # --no-scripts skips hooks that need a DB connection, --no-autoloader because
 # the PSR-4 modules/ aren't copied yet.
-COPY --chown=www-data:www-data composer.json composer.lock ./
+COPY composer.json composer.lock ./
 RUN composer install --no-interaction --no-dev --no-scripts --no-autoloader
 
-COPY --chown=www-data:www-data . .
+COPY . .
 
-RUN composer dump-autoload --no-dev --optimize
+# COPY resets folders that exist in the repo (e.g. storage/) to root, so hand
+# Craft's writable paths back to www-data.
+RUN composer dump-autoload --no-dev --optimize \
+  && chown -R www-data:www-data storage web/cpresources web/assets .env
+
+USER www-data

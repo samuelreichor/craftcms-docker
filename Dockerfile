@@ -3,6 +3,9 @@
 # nginx + php-fpm with the PHP extensions Craft needs, Composer and the MySQL
 # client. The same image runs the queue worker: any command other than the
 # default skips nginx/php-fpm, e.g. `php craft queue/listen`.
+#
+# The image ends as www-data. Projects switch to root to copy their code and
+# install dependencies, then run `chown` on the writable paths and switch back.
 
 ARG PHP_VERSION=8.4
 
@@ -32,12 +35,15 @@ RUN install-php-extensions bcmath gd intl Imagick/imagick@${IMAGICK_VERSION} \
 COPY --chmod=755 bin/mysql-wrapper /usr/local/bin/mysql
 COPY --chmod=755 bin/mysql-wrapper /usr/local/bin/mysqldump
 
-# Craft's writable paths have to exist in the image, otherwise Docker creates
+COPY nginx/craftcms-docker.conf /etc/nginx/server-opts.d/craftcms-docker.conf
+
+# Project code belongs to root and is read-only for PHP. Only Craft's runtime
+# paths are writable. They have to exist in the image, otherwise Docker creates
 # mounted volumes (e.g. web/assets) owned by root. .env is touched so Craft can
 # write to it even when Coolify injects env vars at runtime instead.
 RUN mkdir -p /app/storage /app/web/cpresources /app/web/assets \
   && touch /app/.env \
-  && chown -R www-data:www-data /app
+  && chown -R www-data:www-data /app/storage /app/web/cpresources /app/web/assets /app/.env
 
 WORKDIR /app
 
