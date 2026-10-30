@@ -121,7 +121,9 @@ current password (set `SERVICE_PASSWORD_MYSQL` to it in Coolify) or change it in
   (8.4.x) arrive the same way. Trigger "Run workflow" in the Actions tab to rebuild right away.
 - **Vulnerabilities**: every build scans the images with [Trivy](https://trivy.dev) (fixable HIGH/CRITICAL findings).
   Results show up in the build log and under the repository's **Security > Code scanning** tab.
-- **New PHP version**: add it to the list in the `versions` job of `.github/workflows/build.yml` and push.
+  On top of that, `scan.yml` checks the published images every day and rebuilds the affected PHP versions
+  without cache as soon as a fix is available (Alpine packages via `apk upgrade`, PHP itself once serversideup ships it).
+- **New PHP version**: add it to `php-versions.json` and push.
   Dropped versions keep their last tags on GHCR but are no longer updated.
 - **Changes to the image** (new extension, …): edit `Dockerfile` and push to `main`.
 - Projects pick up a new base image on their next deploy, as long as Docker pulls it. Pin a dated tag

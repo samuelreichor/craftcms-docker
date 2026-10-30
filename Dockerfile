@@ -28,7 +28,9 @@ ENV TRUSTED_PROXY=local
 # intl required by craftcms/cms, imagick for Craft's image transforms.
 # imagick is built from GitHub instead of PECL, which regularly times out.
 # mariadb-connector + mysql-client are needed for craft db/backup + mysqldump.
+# apk upgrade pulls Alpine security fixes even before the upstream image is rebuilt.
 RUN install-php-extensions bcmath gd intl Imagick/imagick@${IMAGICK_VERSION} \
+  && apk upgrade --no-cache \
   && apk add --no-cache git unzip bash vim mariadb-connector-c mysql-client
 
 # Wrappers take precedence over /usr/bin via PATH.

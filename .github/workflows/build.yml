@@ -11,19 +11,44 @@ on:
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
+    inputs:
+      php:
+        description: 'PHP versions as JSON list, e.g. ["8.4"] (default: all from php-versions.json)'
+        required: false
+        type: string
+      no-cache:
+        description: Build without cache
+        required: false
+        type: boolean
+        default: false
+  # Called by scan.yml to rebuild versions with fixable vulnerabilities.
+  workflow_call:
+    inputs:
+      php:
+        required: false
+        type: string
+      no-cache:
+        required: false
+        type: boolean
+        default: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  # Single place to maintain the PHP versions that get built.
+  # The PHP versions to build come from php-versions.json, unless the caller
+  # passes a subset.
   versions:
     runs-on: ubuntu-24.04
     outputs:
       php: ${{ steps.php.outputs.versions }}
     steps:
+      - uses: actions/checkout@v4
+
       - id: php
-        run: echo 'versions=["8.3", "8.4", "8.5"]' >> "$GITHUB_OUTPUT"
+        env:
+          REQUESTED: ${{ inputs.php }}
+        run: echo "versions=$(echo "${REQUESTED:-$(cat php-versions.json)}" | jq -c .)" >> "$GITHUB_OUTPUT"
 
   build:
     name: ${{ matrix.php }} (${{ matrix.arch.name }})
@@ -58,8 +83,8 @@ jobs:
           platforms: linux/${{ matrix.arch.name }}
           build-args: PHP_VERSION=${{ matrix.php }}
           pull: true
-          # Scheduled builds skip the cache so apk packages are refreshed too.
-          no-cache: ${{ github.event_name == 'schedule' }}
+          # Scheduled and security rebuilds skip the cache so apk packages are refreshed too.
+          no-cache: ${{ github.event_name == 'schedule' || inputs.no-cache == true }}
           cache-from: type=gha,scope=${{ matrix.php }}-${{ matrix.arch.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.php }}-${{ matrix.arch.name }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

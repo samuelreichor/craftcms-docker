@@ -1,0 +1,45 @@
+name: Security scan
+
+on:
+  # Daily check of the published images for newly reported vulnerabilities.
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    outputs:
+      affected: ${{ steps.scan.outputs.affected }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only fixable HIGH/CRITICAL findings count: a rebuild can't help with the rest.
+      - id: scan
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          affected=()
+          for php in $(jq -r '.[]' php-versions.json); do
+            echo "::group::$IMAGE:$php"
+            if ! docker run --rm -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --quiet "$IMAGE:$php"; then
+              affected+=("$php")
+            fi
+            echo "::endgroup::"
+          done
+          json=$(printf '%s\n' "${affected[@]}" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "Affected versions: $json"
+          echo "affected=$json" >> "$GITHUB_OUTPUT"
+
+  rebuild:
+    needs: scan
+    if: needs.scan.outputs.affected != '[]'
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    uses: ./.github/workflows/build.yml
+    with:
+      php: ${{ needs.scan.outputs.affected }}
+      no-cache: true
