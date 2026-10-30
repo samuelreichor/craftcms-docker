@@ -1,8 +1,8 @@
+# Versions: only change them here.
 ARG PHP_VERSION=8.4
 ARG NODE_VERSION=24
-ARG BASE_IMAGE=ghcr.io/samuelreichor/craftcms-docker
 
-### Stage 1: Nuxt Build Environment
+### Nuxt build
 FROM node:${NODE_VERSION}-alpine AS nuxtbuilder
 
 # Nuxt reads these in nuxt.config.ts at build time (craftcms baseUrl + siteMap),
@@ -29,7 +29,7 @@ COPY frontend ./frontend
 
 RUN npm run build
 
-### Stage 2: Nuxt Server - runs the Nitro SSR server
+### Nuxt server - runs the Nitro SSR server (target: nuxt)
 FROM node:${NODE_VERSION}-alpine AS nuxt
 
 ENV NODE_ENV=production \
@@ -46,45 +46,19 @@ EXPOSE 3000
 
 CMD ["node", ".output/server/index.mjs"]
 
-### Stage 3: Composer Dependencies
-FROM ${BASE_IMAGE}:${PHP_VERSION}-cli AS vendor
-
-COPY composer.json composer.lock ./
-
-# --no-scripts skips composer hooks that need a working DB connection or the
-# project sources. --no-autoloader because the PSR-4 modules/ aren't copied yet.
-RUN composer install --no-interaction --no-dev --no-scripts --no-autoloader
-
-COPY modules ./modules
-
-RUN composer dump-autoload --no-dev --optimize
-
-### Stage 4: Web (nginx + php-fpm)
-FROM ${BASE_IMAGE}:${PHP_VERSION}-web AS web
-
-USER root
+### Craft (web + queue)
+FROM ghcr.io/samuelreichor/craftcms-docker:${PHP_VERSION}
 
 # Serves Craft and proxies everything else to the nuxt service on the same domain.
 # Replaces the whole site config instead of adding snippets to server-opts.d.
 COPY .coolify/nginx/http.conf.template /etc/nginx/site-opts.d/http.conf.template
 
-COPY . .
-COPY --from=vendor /app/vendor ./vendor
+# Dependencies first, so they stay cached until composer.lock changes.
+# --no-scripts skips hooks that need a DB connection, --no-autoloader because
+# the PSR-4 modules/ aren't copied yet.
+COPY --chown=www-data:www-data composer.json composer.lock ./
+RUN composer install --no-interaction --no-dev --no-scripts --no-autoloader
 
-RUN craft-prepare
+COPY --chown=www-data:www-data . .
 
-USER www-data
-
-### Stage 5: Queue Worker - runs craft queue/listen
-FROM ${BASE_IMAGE}:${PHP_VERSION}-cli AS queue
-
-USER root
-
-COPY . .
-COPY --from=vendor /app/vendor ./vendor
-
-RUN craft-prepare
-
-USER www-data
-
-CMD ["php", "craft", "queue/listen", "--verbose"]
+RUN composer dump-autoload --no-dev --optimize

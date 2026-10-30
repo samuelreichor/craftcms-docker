@@ -5,7 +5,7 @@
 # flag has to be passed on the command line, right after --defaults-file
 # (which must stay the first argument).
 #
-# Symlinked as /usr/local/bin/mysql and /usr/local/bin/mysqldump.
+# Installed as /usr/local/bin/mysql and /usr/local/bin/mysqldump.
 case "$(basename "$0")" in
   mysqldump) bin=/usr/bin/mariadb-dump ;;
   *) bin=/usr/bin/mariadb ;;

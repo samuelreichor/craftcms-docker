@@ -1,44 +1,12 @@
-# Base images for Craft CMS projects deployed with Coolify (or any Docker host).
+# Base image for Craft CMS projects deployed with Coolify (or any Docker host).
 #
-#   cli  PHP CLI + Composer. Used for `composer install` and the queue worker.
-#   web  nginx + php-fpm (s6-overlay), webroot /app/web.
-#
-# Both targets share the same PHP extensions and tools, so projects only copy
-# their code on top instead of compiling extensions on every deploy.
+# nginx + php-fpm with the PHP extensions Craft needs, Composer and the MySQL
+# client. The same image runs the queue worker: any command other than the
+# default skips nginx/php-fpm, e.g. `php craft queue/listen`.
 
 ARG PHP_VERSION=8.4
 
-FROM composer:2 AS composer
-
-### CLI
-FROM serversideup/php:${PHP_VERSION}-cli-alpine AS cli
-
-ARG IMAGICK_VERSION=3.8.1
-
-USER root
-
-# bcmath required by craftcms/cms + moneyphp/money, gd required by phpoffice/phpspreadsheet,
-# intl required by craftcms/cms, imagick for Craft's image transforms.
-# imagick is built from GitHub instead of PECL, which regularly times out.
-# mariadb-connector + mysql-client are needed for craft db/backup + mysqldump.
-RUN install-php-extensions bcmath gd intl Imagick/imagick@${IMAGICK_VERSION} \
-  && apk add --no-cache git unzip bash mariadb-connector-c mysql-client
-
-COPY --from=composer /usr/bin/composer /usr/bin/composer
-COPY --chmod=755 rootfs/usr/local/bin/ /usr/local/bin/
-
-# mysql/mysqldump wrappers take precedence over /usr/bin via PATH.
-RUN ln -s mariadb-client-wrapper /usr/local/bin/mysql \
-  && ln -s mariadb-client-wrapper /usr/local/bin/mysqldump \
-  && mkdir -p /app \
-  && chown www-data:www-data /app
-
-WORKDIR /app
-
-USER www-data
-
-### Web
-FROM serversideup/php:${PHP_VERSION}-fpm-nginx-alpine AS web
+FROM serversideup/php:${PHP_VERSION}-fpm-nginx-alpine
 
 ARG IMAGICK_VERSION=3.8.1
 
@@ -48,15 +16,23 @@ USER root
 ENV NGINX_WEBROOT=/app/web
 ENV PHP_OPCACHE_ENABLE=1
 
+# bcmath required by craftcms/cms + moneyphp/money, gd required by phpoffice/phpspreadsheet,
+# intl required by craftcms/cms, imagick for Craft's image transforms.
+# imagick is built from GitHub instead of PECL, which regularly times out.
+# mariadb-connector + mysql-client are needed for craft db/backup + mysqldump.
 RUN install-php-extensions bcmath gd intl Imagick/imagick@${IMAGICK_VERSION} \
   && apk add --no-cache git unzip bash vim mariadb-connector-c mysql-client
 
-COPY --chmod=755 rootfs/usr/local/bin/ /usr/local/bin/
+# Wrappers take precedence over /usr/bin via PATH.
+COPY --chmod=755 bin/mysql-wrapper /usr/local/bin/mysql
+COPY --chmod=755 bin/mysql-wrapper /usr/local/bin/mysqldump
 
-RUN ln -s mariadb-client-wrapper /usr/local/bin/mysql \
-  && ln -s mariadb-client-wrapper /usr/local/bin/mysqldump \
-  && mkdir -p /app \
-  && chown www-data:www-data /app
+# Craft's writable paths have to exist in the image, otherwise Docker creates
+# mounted volumes (e.g. web/assets) owned by root. .env is touched so Craft can
+# write to it even when Coolify injects env vars at runtime instead.
+RUN mkdir -p /app/storage /app/web/cpresources /app/web/assets \
+  && touch /app/.env \
+  && chown -R www-data:www-data /app
 
 WORKDIR /app
 

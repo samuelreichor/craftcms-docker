@@ -16,8 +16,18 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
+  # Single place to maintain the PHP versions that get built.
+  versions:
+    runs-on: ubuntu-24.04
+    outputs:
+      php: ${{ steps.php.outputs.versions }}
+    steps:
+      - id: php
+        run: echo 'versions=["8.3", "8.4", "8.5"]' >> "$GITHUB_OUTPUT"
+
   build:
-    name: ${{ matrix.php }}-${{ matrix.target }} (${{ matrix.arch.name }})
+    name: ${{ matrix.php }} (${{ matrix.arch.name }})
+    needs: versions
     runs-on: ${{ matrix.arch.runner }}
     permissions:
       contents: read
@@ -25,8 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4', '8.5']
-        target: [cli, web]
+        php: ${{ fromJSON(needs.versions.outputs.php) }}
         arch:
           - { name: amd64, runner: ubuntu-24.04 }
           - { name: arm64, runner: ubuntu-24.04-arm }
@@ -46,14 +55,13 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          target: ${{ matrix.target }}
           platforms: linux/${{ matrix.arch.name }}
           build-args: PHP_VERSION=${{ matrix.php }}
           pull: true
           # Scheduled builds skip the cache so apk packages are refreshed too.
           no-cache: ${{ github.event_name == 'schedule' }}
-          cache-from: type=gha,scope=${{ matrix.php }}-${{ matrix.target }}-${{ matrix.arch.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.php }}-${{ matrix.target }}-${{ matrix.arch.name }}
+          cache-from: type=gha,scope=${{ matrix.php }}-${{ matrix.arch.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.php }}-${{ matrix.arch.name }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
 
@@ -67,15 +75,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: github.event_name != 'pull_request'
         with:
-          name: digests-${{ matrix.php }}-${{ matrix.target }}-${{ matrix.arch.name }}
+          name: digests-${{ matrix.php }}-${{ matrix.arch.name }}
           path: /tmp/digests/*
           retention-days: 1
 
   # Combines the per-arch images into one multi-arch tag.
   merge:
-    name: ${{ matrix.php }}-${{ matrix.target }}
+    name: ${{ matrix.php }}
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: [versions, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -83,13 +91,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4', '8.5']
-        target: [cli, web]
+        php: ${{ fromJSON(needs.versions.outputs.php) }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-${{ matrix.php }}-${{ matrix.target }}-*
+          pattern: digests-${{ matrix.php }}-*
           merge-multiple: true
 
       - uses: docker/setup-buildx-action@v3
@@ -105,9 +112,9 @@ jobs:
         run: |
           date=$(date -u +%Y%m%d)
           docker buildx imagetools create \
-            -t "$IMAGE:${{ matrix.php }}-${{ matrix.target }}" \
-            -t "$IMAGE:${{ matrix.php }}-${{ matrix.target }}-$date" \
+            -t "$IMAGE:${{ matrix.php }}" \
+            -t "$IMAGE:${{ matrix.php }}-$date" \
             $(printf "$IMAGE@sha256:%s " *)
 
       - name: Inspect
-        run: docker buildx imagetools inspect "$IMAGE:${{ matrix.php }}-${{ matrix.target }}"
+        run: docker buildx imagetools inspect "$IMAGE:${{ matrix.php }}"
