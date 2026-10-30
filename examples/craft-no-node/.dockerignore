@@ -1,0 +1,13 @@
+.git
+.ddev
+.idea
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules
+vendor
+storage/runtime
+storage/logs
+storage/backups
+web/cpresources

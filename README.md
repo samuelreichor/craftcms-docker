@@ -33,6 +33,7 @@ The same image runs the queue worker: any command other than the default skips n
 Copy one of the examples into the project root:
 
 - [`examples/craft`](examples/craft): classic Craft site (Twig + Vite assets) with `web`, `queue` and `db`
+- [`examples/craft-no-node`](examples/craft-no-node): Craft without a frontend build step (headless/API-only or Twig without Vite)
 - [`examples/craft-nuxt`](examples/craft-nuxt): headless Craft + Nuxt SSR on one domain
   (create the `NUXT_*` variables in Coolify's Environment Variables, Coolify passes them to the build)
 
