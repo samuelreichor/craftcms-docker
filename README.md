@@ -78,7 +78,9 @@ Because `config/` is read-only, production needs these settings in `config/gener
 ->allowAdminChanges(App::env('CRAFT_ENVIRONMENT') === 'dev')
 ```
 
-Set the license key via the `CRAFT_LICENSE_KEY` environment variable (Craft can't write `config/license.key`).
+Set the license key via the `CRAFT_LICENSE_KEY` environment variable (the content of `config/license.key`, from your local
+install or craftcms.com → Licenses) unless `config/license.key` is committed. Without either, Craft tries to create
+`config/license.key` on the first request and stops with `/app/config isn't writable by PHP. Please fix that.`
 Site specific headers like `Content-Security-Policy` or `Permissions-Policy` belong in the project's
 `.coolify/nginx/*.conf`, see [`examples/craft`](examples/craft/.coolify/nginx/custom.conf).
 The remaining recommendations of the guide (Twig sandbox, `allowedFileExtensions`, escaping user input, …)
